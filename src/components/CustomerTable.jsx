@@ -69,7 +69,7 @@ const CustomerTable = ({ customers, fetchCustomers }) => {
       alert("Failed to upload image");
     }
   };
-
+console.log(customers);
   return (
     <table className="w-full border-collapse border font-serif text-deep-purple">
       <thead>
@@ -82,8 +82,10 @@ const CustomerTable = ({ customers, fetchCustomers }) => {
         </tr>
       </thead>
       <tbody>
+        {console.log (customers)}
         {customers.map((c) => (
           <tr key={c.customer_id} className="hover:bg-gray-100">
+            {console.log(c)}
             <td className="border p-2">
               {c.profile_pic ? (
                 <img

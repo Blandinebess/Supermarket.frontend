@@ -1,8 +1,9 @@
+// src/pages/Sales.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import SalesTable from "../components/SalesTable";
+import SalesTable from "../components/SalesTable"; // adjust path if needed
 
-const BASE_URL = "http://localhost:3000";
+const API = "http://localhost:3000";
 
 const Sales = () => {
   const [customers, setCustomers] = useState([]);
@@ -11,165 +12,155 @@ const Sales = () => {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [sales, setSales] = useState([]);
-  const [error, setError] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
 
-  // Fetch customers
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const handleNetworkError = (err) => {
+    if (err.message === "Network Error") {
+      setConnectionError("Cannot connect to backend at http://localhost:3000");
+    } else if (err.response && err.response.data) {
+      if (err.response.status === 401 || err.response.status === 403) {
+        setConnectionError("Unauthorized — please login again.");
+        // optionally clear token and redirect to login
+      }
+    }
+    console.error(err);
+  };
+
   const fetchCustomers = useCallback(async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/customers`, { headers });
-      setCustomers(res.data);
+      const res = await axios.get(`${API}/customers`, { headers: authHeaders });
+      setCustomers(res.data || []);
+      setConnectionError(null);
     } catch (err) {
-      console.error("Error fetching customers:", err);
-      setError("Failed to load customers");
+      handleNetworkError(err);
     }
   }, [token]);
 
-  // Fetch inventory
   const fetchInventory = useCallback(async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/inventory`, { headers });
-      setInventory(res.data);
+      const res = await axios.get(`${API}/inventory`, { headers: authHeaders });
+      setInventory(res.data || []);
+      setConnectionError(null);
     } catch (err) {
-      console.error("Error fetching inventory:", err);
-      setError("Failed to load inventory");
+      handleNetworkError(err);
     }
   }, [token]);
 
-  // Fetch sales
   const fetchSales = useCallback(async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/sales`, { headers });
-      setSales(res.data);
+      const res = await axios.get(`${API}/sales`, { headers: authHeaders });
+      setSales(res.data || []);
+      setConnectionError(null);
     } catch (err) {
-      console.error("Error fetching sales:", err);
-      setError("Failed to load sales");
+      handleNetworkError(err);
     }
   }, [token]);
 
-  // Load all data on mount
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       setLoading(true);
       await Promise.all([fetchCustomers(), fetchInventory(), fetchSales()]);
       setLoading(false);
     };
-    loadData();
+    load();
   }, [fetchCustomers, fetchInventory, fetchSales]);
 
-  // Add product line
   const addItem = () => {
-    setItems([...items, { product_id: "", quantity: 1, price: 0 }]);
+    setItems((s) => [...s, { product_id: "", quantity: 1, price: 0 }]);
   };
 
-  // Update product line
   const updateItem = (index, field, value) => {
-    const updated = [...items];
-    updated[index][field] = value;
+    setItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
 
-    if (field === "product_id" || field === "quantity") {
-      const product = inventory.find(
-        (p) => p.product_id == updated[index].product_id
+      // if product chosen, set price from inventory
+      if (field === "product_id") {
+        const p = inventory.find(
+          (it) => String(it.product_id) === String(value)
+        );
+        next[index].price = p ? Number(p.price) : 0;
+      }
+      // recalc total
+      const sum = next.reduce(
+        (acc, it) => acc + (Number(it.price) || 0) * (Number(it.quantity) || 0),
+        0
       );
-      updated[index].price = product ? product.price : 0;
-    }
-
-    setItems(updated);
-    calculateTotal(updated);
+      setTotal(sum);
+      return next;
+    });
   };
 
-  // Calculate total
-  const calculateTotal = (list) => {
-    const sum = list.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    setTotal(sum);
-  };
-
-  // Submit sale
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedCustomer || items.length === 0) {
-      alert("Please select a customer and at least one product.");
-      return;
-    }
+    if (!selectedCustomer) return alert("Select a customer");
+    if (items.length === 0) return alert("Add at least one product");
 
     try {
-      // 1️⃣ Create sale
       const saleRes = await axios.post(
-        `${BASE_URL}/sales`,
+        `${API}/sales`,
         { customer_id: selectedCustomer, total_amount: total },
-        { headers }
+        { headers: authHeaders }
       );
       const sale_id = saleRes.data.sales_id;
 
-      // 2️⃣ Add items to sale
-      for (const item of items) {
-        const product = inventory.find((p) => p.product_id == item.product_id);
-        if (!product) continue;
-
-        if (item.quantity > product.stock) {
+      for (const it of items) {
+        const product = inventory.find(
+          (p) => String(p.product_id) === String(it.product_id)
+        );
+        if (!product) {
+          alert("Product not found: " + it.product_id);
+          continue;
+        }
+        if (it.quantity > product.stock) {
           alert(
             `Not enough stock for ${product.name}. Available: ${product.stock}`
           );
           continue;
         }
-
         await axios.post(
-          `${BASE_URL}/sales/${sale_id}/items`,
-          { product_id: item.product_id, quantity: item.quantity },
-          { headers }
+          `${API}/sales/${sale_id}/items`,
+          { product_id: it.product_id, quantity: it.quantity },
+          { headers: authHeaders }
         );
-
-        // 3️⃣ Update stock
-        const newStock = product.stock - item.quantity;
-        await axios.put(
-          `${BASE_URL}/inventory/${item.product_id}`,
-          { name: product.name, price: product.price, stock: newStock },
-          { headers }
-        );
-
-        if (newStock <= 0) {
-          alert(`⚠️ ${product.name} is out of stock!`);
-        }
       }
 
-      alert("✅ Sale recorded successfully!");
+      alert("Sale recorded");
       setSelectedCustomer("");
       setItems([]);
       setTotal(0);
       fetchSales();
       fetchInventory();
     } catch (err) {
-      console.error("Error recording sale:", err);
-      alert("❌ Failed to record sale");
+      console.error(err);
+      alert("Failed to record sale");
     }
   };
 
   return (
-    <div className="p-6 font-serif text-deep-purple">
-      <h1 className="text-3xl font-bold mb-4">Record Sale</h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Record Sale</h1>
 
-      {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>
-      )}
-
-      {loading && (
-        <div className="bg-blue-100 text-blue-700 p-3 rounded mb-4">
-          Loading data...
+      {connectionError && (
+        <div className="bg-red-100 p-3 rounded mb-4 text-red-800">
+          {connectionError}
         </div>
       )}
 
-      {/* Sale Form */}
+      {loading && <div className="mb-4">Loading...</div>}
+
       <form onSubmit={handleSubmit} className="mb-6">
-        {/* Select Customer */}
         <div className="mb-4">
-          <label className="block mb-1">Customer</label>
+          <label>Customer</label>
           <select
-            className="border p-2 w-full"
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
+            className="border p-2 w-full"
           >
             <option value="">Select customer</option>
             {customers.map((c) => (
@@ -180,16 +171,13 @@ const Sales = () => {
           </select>
         </div>
 
-        {/* Product Lines */}
         <div>
-          {items.map((item, index) => (
-            <div key={index} className="flex gap-2 mb-2">
+          {items.map((it, idx) => (
+            <div key={idx} className="flex gap-2 mb-2">
               <select
+                value={it.product_id}
+                onChange={(e) => updateItem(idx, "product_id", e.target.value)}
                 className="border p-2 flex-1"
-                value={item.product_id}
-                onChange={(e) =>
-                  updateItem(index, "product_id", e.target.value)
-                }
               >
                 <option value="">Select product</option>
                 {inventory.map((p) => (
@@ -200,14 +188,14 @@ const Sales = () => {
               </select>
               <input
                 type="number"
-                className="border p-2 w-24"
                 min="1"
-                value={item.quantity}
+                value={it.quantity}
                 onChange={(e) =>
-                  updateItem(index, "quantity", parseInt(e.target.value))
+                  updateItem(idx, "quantity", Number(e.target.value))
                 }
+                className="border p-2 w-24"
               />
-              <span className="p-2 w-24">${item.price}</span>
+              <div className="p-2 w-24">${Number(it.price).toFixed(2)}</div>
             </div>
           ))}
         </div>
@@ -215,24 +203,21 @@ const Sales = () => {
         <button
           type="button"
           onClick={addItem}
-          className="bg-purple-500 text-white px-4 py-2 mt-2 rounded"
+          className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
         >
           Add Product
         </button>
-
-        <div className="mt-4 font-bold">Total: ${total.toFixed(2)}</div>
-
+        <div className="mt-4 font-bold">Total: ${Number(total).toFixed(2)}</div>
         <button
           type="submit"
-          className="bg-green-600 text-white px-4 py-2 mt-2 rounded"
+          className="bg-green-500 text-white px-4 py-2 rounded mt-2"
         >
           Submit Sale
         </button>
       </form>
 
-      {/* Sales Table */}
       <h2 className="text-xl font-bold mb-2">Past Sales</h2>
-      <SalesTable sales={sales} />
+      <SalesTable sales={sales || []} />
     </div>
   );
 };

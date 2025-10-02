@@ -1,61 +1,83 @@
-import { useState } from "react";
-import { FaFlower } from "react-icons/fa";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../utils/api";
 
-export default function Register() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+const Register = () => {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
+  // update input values
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // handle registration
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:3000/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage("Registered successfully!");
-      } else {
-        setMessage(data.message || "Error registering");
-      }
+      const res = await API.post("/auth/register", form);
+
+      // ✅ save login info directly after registering
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("username", res.data.user.username);
+
+      // ✅ go straight to dashboard
+      navigate("/dashboard");
     } catch (err) {
-        console.error(err);
-      setMessage("Network error");
+      setError(err.response?.data?.message || "Registration failed");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-purple-50">
+    <div className="flex justify-center items-center h-screen bg-gray-100">
       <form
         onSubmit={handleSubmit}
-        className="p-8 bg-white rounded-xl shadow-lg w-96"
+        className="bg-white shadow-lg rounded-xl p-8 w-96"
       >
-        <h2 className="text-3xl font-bold text-primary flex items-center gap-2 mb-6">
-          <FaFlower className="text-accent" /> Register
-        </h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">📝 Register</h2>
+
+        {error && <p className="text-red-500 text-center mb-2">{error}</p>}
 
         <input
           type="text"
+          name="username"
           placeholder="Username"
-          className="border p-2 w-full mb-4 rounded"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={form.username}
+          onChange={handleChange}
+          className="w-full mb-3 p-2 border rounded"
+          required
         />
+
         <input
           type="password"
+          name="password"
           placeholder="Password"
-          className="border p-2 w-full mb-4 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={form.password}
+          onChange={handleChange}
+          className="w-full mb-3 p-2 border rounded"
+          required
         />
-        <button className="w-full bg-primary text-white py-2 rounded hover:bg-secondary transition">
+
+        <button
+          type="submit"
+          className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded"
+        >
           Register
         </button>
 
-        {message && <p className="mt-3 text-red-500">{message}</p>}
+        <p className="text-sm mt-3 text-center">
+          Already have an account?{" "}
+          <span
+            onClick={() => navigate("/login")}
+            className="text-blue-600 cursor-pointer"
+          >
+            Login
+          </span>
+        </p>
       </form>
     </div>
   );
-}
+};
+
+export default Register;

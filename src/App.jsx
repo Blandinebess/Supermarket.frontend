@@ -1,57 +1,60 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import { useState, useEffect } from "react";
-
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/Login";
+import register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Customers from "./pages/Customers";
 import Sales from "./pages/Sales";
-import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem("token"));
+const RequireAuth = ({ children }) => {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" replace />;
+};
 
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setToken(localStorage.getItem("token"));
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
+export default function App() {
   return (
-    <Router>
-      {token && <Navbar />}
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/dashboard"
-          element={token ? <Dashboard /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/inventory"
-          element={token ? <Inventory /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/customers"
-          element={token ? <Customers /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/sales"
-          element={token ? <Sales /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="*"
-          element={<Navigate to={token ? "/inventory" : "/login"} />}
-        />
-      </Routes>
-    </Router>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="container mx-auto p-4">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <RequireAuth>
+                <Inventory />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <RequireAuth>
+                <Customers />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/sales"
+            element={
+              <RequireAuth>
+                <Sales />
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
-
-export default App;

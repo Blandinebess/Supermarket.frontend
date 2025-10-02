@@ -25,16 +25,18 @@ const SalesTable = ({ sales }) => {
           {sales.map((sale) => (
             <tr key={sale.sales_id} className="hover:bg-gray-50">
               <td className="border px-4 py-2">{sale.sales_id}</td>
+          
+
               <td className="border px-4 py-2">{sale.customer_name}</td>
               <td className="border px-4 py-2">
-                {sale.products.map((p) => p.name).join(", ")}
+                {sale.items?.map((p) =>{ console.log(p); return p.product_name}).join(", ")}
               </td>
               <td className="border px-4 py-2">
-                {sale.products.map((p) => p.quantity).join(", ")}
+                {sale.items?.map((p) => p.quantity).join(", ")}
               </td>
               <td className="border px-4 py-2">
-                {sale.products
-                  .map((p) => `$${parseFloat(p.price).toFixed(2)}`)
+                {sale.items
+                  ?.map((p) => `$${parseFloat(p.price).toFixed(2)}`)
                   .join(", ")}
               </td>
             </tr>

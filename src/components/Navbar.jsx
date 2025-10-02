@@ -1,9 +1,11 @@
+// Navbar.jsx
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaUser, FaShoppingBag } from "react-icons/fa"; // valid icons
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const username = localStorage.getItem("username") || "User";
+  const token = localStorage.getItem("token");
+  const username = localStorage.getItem("username"); // optional; set on login
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -12,33 +14,46 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-purple-700 text-white flex justify-between items-center p-4">
-      <div className="flex items-center gap-2">
-        <FaShoppingBag className="w-6 h-6 text-yellow-300" />
-        <span className="font-bold text-xl">Supermarket</span>
-      </div>
-      <div className="flex items-center gap-4">
-        <Link to="/dashboard" className="hover:text-yellow-300">
-          Dashboard
-        </Link>
-        <Link to="/inventory" className="hover:text-yellow-300">
-          Inventory
-        </Link>
-        <Link to="/customers" className="hover:text-yellow-300">
-          Customers
-        </Link>
-        <Link to="/sales" className="hover:text-yellow-300">
-          Sales
-        </Link>
-        <div className="flex items-center gap-2">
-          <FaUser />
-          <span>{username}</span>
-          <button
-            onClick={handleLogout}
-            className="ml-2 bg-red-500 px-2 py-1 rounded hover:bg-red-600"
-          >
-            Logout
-          </button>
+    <nav className="bg-purple-700 text-white">
+      <div className="container mx-auto flex items-center justify-between p-3">
+        {/* Left links */}
+        <div>
+          <Link to="/" className="font-bold text-lg mr-4">
+            Supermarket
+          </Link>
+          <Link to="/inventory" className="mr-3 hover:underline">
+            Inventory
+          </Link>
+          <Link to="/customers" className="mr-3 hover:underline">
+            Customers
+          </Link>
+          <Link to="/sales" className="mr-3 hover:underline">
+            Sales
+          </Link>
+        </div>
+
+        {/* Right side: login/logout */}
+        <div className="flex items-center gap-4">
+          {token ? (
+            <>
+              <span className="hidden sm:inline-block">
+                Hi, {username || "User"}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-white text-purple-700 px-3 py-1 rounded font-semibold hover:bg-gray-200"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="bg-white text-purple-700 px-3 py-1 rounded font-semibold hover:bg-gray-200"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </div>
     </nav>

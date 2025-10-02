@@ -1,85 +1,90 @@
-import { useState, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUser } from "react-icons/fa";
+import { AuthContext } from "../context/AuthContext";
 
-export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+const Login = () => {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
-  useEffect(() => {
-    // Redirect if already logged in
-    if (localStorage.getItem("token")) {
-      navigate("/dashboard");
-    }
-  }, []);
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await fetch("http://localhost:3000/auth/login", {
-        method: "POST",
-        headers: {
-          Authorization: "Basic " + btoa(`${username}:${password}`),
-          "Content-Type": "application/json", 
-        },
-        credentials: "include",
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", username);
-        navigate("/dashboard"); 
-      } else {
-        setMessage(data.message || "Login failed");
-      }
+      await login(form.username, form.password);
+      navigate("/");
     } catch (err) {
-      console.error("Login error:", err);
-      setMessage("Network error");
+      console.error("Login error:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Login failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-purple-50">
+    <div className="flex justify-center items-center h-screen bg-gray-100">
       <form
-        className="p-8 bg-white rounded-xl shadow-lg w-96"
         onSubmit={handleSubmit}
+        className="bg-white shadow-lg rounded-xl p-8 w-96"
       >
-        <h2 className="text-3xl font-bold text-purple-800 flex items-center gap-2 mb-6">
-          <FaUser className="text-purple-600" /> Login
-        </h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">🔑 Login</h2>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
 
         <input
           type="text"
+          name="username"
           placeholder="Username"
-          className="border p-2 w-full mb-4 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={form.username}
+          onChange={handleChange}
+          className="w-full mb-3 p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
+          disabled={loading}
         />
+
         <input
           type="password"
+          name="password"
           placeholder="Password"
-          className="border p-2 w-full mb-4 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={form.password}
+          onChange={handleChange}
+          className="w-full mb-4 p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
+          disabled={loading}
         />
 
         <button
           type="submit"
-          className="w-full bg-purple-700 text-white py-2 rounded hover:bg-purple-800 transition"
+          disabled={loading}
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded transition duration-200 disabled:opacity-50"
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
 
-        {message && (
-          <p className="mt-3 text-red-500 text-sm text-center">{message}</p>
-        )}
+        <p className="text-sm mt-4 text-center">
+          Don't have an account?{" "}
+          <span
+            onClick={() => navigate("/register")}
+            className="text-blue-600 cursor-pointer hover:underline"
+          >
+            Register
+          </span>
+        </p>
       </form>
     </div>
   );
-}
+};
+
+export default Login;

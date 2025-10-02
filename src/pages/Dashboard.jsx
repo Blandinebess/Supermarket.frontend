@@ -1,185 +1,96 @@
-import React, { useState, useEffect } from "react";
+import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { AuthContext } from "../context/AuthContext";
 
-const Dashboard = () => {
+export default function Dashboard() {
+  const { user, logout, loading } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
-  const [profilePic, setProfilePic] = useState(null);
-  const [totalValue, setTotalValue] = useState(0);
-  const [topProducts, setTopProducts] = useState([]);
-  const [lowStock, setLowStock] = useState([]);
-  const [totalCustomers, setTotalCustomers] = useState(0);
+  
 
-  const token = localStorage.getItem("token");
-
+  // ✅ Redirect to login only after loading completes
   useEffect(() => {
-    if (!token) {
+    if (!loading && !user) {
       navigate("/login");
-      return;
     }
+  }, [user, loading, navigate]);
 
-    fetchUserProfile();
-    fetchInventoryValue();
-    fetchTopProducts();
-    fetchLowStock();
-    fetchTotalCustomers();
-  }, []);
+  // ✅ Show loading screen while fetching user
+  if (loading && !user) {
+    return (
+      <div className="flex items-center justify-center h-screen text-lg text-purple-700 animate-pulse">
+        Loading your dashboard...
+      </div>
+    );
+  }
 
-  const headers = { Authorization: `Bearer ${token}` };
-
-  const fetchUserProfile = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/users/me", {
-        headers,
-      });
-      setUsername(res.data.username);
-      setProfilePic(res.data.profile_pic);
-    } catch (err) {
-      console.error("Error fetching user profile:", err);
-    }
-  };
-
-  const fetchInventoryValue = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/inventory/value", {
-        headers,
-      });
-      setTotalValue(res.data.total_value);
-    } catch (err) {
-      console.error("Error fetching inventory value:", err);
-    }
-  };
-
-  const fetchTopProducts = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/inventory/top/units", {
-        headers,
-      });
-      setTopProducts(res.data);
-    } catch (err) {
-      console.error("Error fetching top products:", err);
-    }
-  };
-
-  const fetchLowStock = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:3000/inventory/low-stock/5",
-        { headers }
-      );
-      setLowStock(res.data);
-    } catch (err) {
-      console.error("Error fetching low stock:", err);
-    }
-  };
-
-  const fetchTotalCustomers = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/customers", {
-        headers,
-      });
-      setTotalCustomers(res.data.length);
-    } catch (err) {
-      console.error("Error fetching customers:", err);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+  // ✅ Graceful fallback if user is still null after loading
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen text-lg text-red-600">
+        Failed to load user. Please try logging in again.
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen font-serif text-deep-purple">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-4xl font-bold">
-          Welcome to Blandine Supermarket, {username}
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-purple-100 to-purple-200 px-4">
+      <div className="bg-white shadow-xl rounded-2xl p-8 text-center w-full max-w-md animate-fadeIn">
+        <h1 className="text-4xl font-extrabold text-purple-700 mb-4">
+          Welcome to Blandine Supermarket 🎉
         </h1>
-        {profilePic && (
+
+        {/* ✅ Profile picture or fallback */}
+        {user.profile_pic ? (
           <img
-            src={`http://localhost:3000${profilePic}`}
-            alt="Profile"
-            className="w-16 h-16 rounded-full border-2 border-gray-300"
+            src={`http://localhost:3000${user.profile_pic}`}
+            alt={`${user.username}'s profile`}
+            className="w-28 h-28 rounded-full mx-auto border-4 border-purple-400 shadow-md mb-6 object-cover"
           />
+        ) : (
+          <div
+            className="w-28 h-28 mx-auto rounded-full bg-purple-300 flex items-center justify-center text-white text-3xl font-bold mb-6 shadow-md"
+            aria-label="User avatar fallback"
+          >
+            {user.username ? user.username.charAt(0).toUpperCase() : "?"}
+          </div>
         )}
-      </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex gap-4 mb-8">
-        <button
-          onClick={() => navigate("/inventory")}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Inventory
-        </button>
-        <button
-          onClick={() => navigate("/customers")}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Customers
-        </button>
-        <button
-          onClick={() => navigate("/sales")}
-          className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-        >
-          Sales
-        </button>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </div>
+        <p className="text-gray-600 mb-6 text-sm sm:text-base">
+          🌟 Hello{" "}
+          <span className="font-semibold text-purple-600">
+            {user.username || "User"}
+          </span>
+          , manage your products, customers, and sales with ease.
+        </p>
 
-      {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Total Inventory Value</h2>
-          <p className="text-2xl font-bold">${totalValue}</p>
-        </div>
-
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">
-            Top Products (Units Sold)
-          </h2>
-          {topProducts.length > 0 ? (
-            <ul className="list-disc ml-5">
-              {topProducts.map((prod) => (
-                <li key={prod.product_id}>
-                  {prod.name} – {prod.units_sold} units
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">No data available</p>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Low Stock Products</h2>
-          {lowStock.length > 0 ? (
-            <ul className="list-disc ml-5">
-              {lowStock.map((prod) => (
-                <li key={prod.product_id}>
-                  {prod.name} – {prod.stock} left
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">All stock levels are healthy</p>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Total Customers</h2>
-          <p className="text-2xl font-bold">{totalCustomers}</p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => navigate("/inventory")}
+            className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-600 transition"
+          >
+            🛒 Manage Products
+          </button>
+          <button
+            onClick={() => navigate("/sales")}
+            className="w-full bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition"
+          >
+            📊 View Sales
+            
+          </button>
+          <button
+            onClick={() => navigate("/customers")}
+            className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition"
+          >
+            👥 Manage Customers
+          </button>
+          <button
+            onClick={logout}
+            className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition"
+          >
+            🚪 Logout
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}
